@@ -10,6 +10,8 @@ namespace SolarGames.Networking
         BinaryReader Reader { get; }
         BinaryWriter Writer { get; }
         int Type { get; set;  }
+        void WriteSerialize(object obj);
+        object ReadSerialized();
 
         string ToString();
     }

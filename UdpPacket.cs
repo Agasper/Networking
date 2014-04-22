@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using SolarGames.Networking.Crypting;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace SolarGames.Networking
 {
@@ -157,6 +158,30 @@ namespace SolarGames.Networking
             {
                 stream.Close();
                 stream.Dispose();
+            }
+        }
+
+        public void WriteSerialize(object obj)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                bf.Serialize(ms, obj);
+                byte[] data = ms.ToArray();
+                writer.Write(data.Length);
+                writer.Write(data);
+            }
+        }
+
+        public object ReadSerialized()
+        {
+            int len = reader.ReadInt32();
+            byte[] data = reader.ReadBytes(len);
+
+            using (MemoryStream ms = new MemoryStream(data))
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                return bf.Deserialize(ms);
             }
         }
 	
