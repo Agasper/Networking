@@ -55,6 +55,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BasePacket.cs" />
     <Compile Include="Crypting\ICipher.cs" />
     <Compile Include="Crypting\RC4\RC4.cs" />
     <Compile Include="HttpServer.cs" />

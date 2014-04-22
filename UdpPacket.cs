@@ -8,15 +8,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 namespace SolarGames.Networking
 {
 
-	public class UdpPacket : IPacket, IDisposable
+	public class UdpPacket : BasePacket, IPacket, IDisposable
 	{
-
-        public int Type
-        {
-	        get { return type; }
-	        set { type = (byte)value; }
-	    }
-
         public uint Sequence
         {
             get { return sequence; }
@@ -29,43 +22,29 @@ namespace SolarGames.Networking
             set { uhash = value; }
         }
 
-	    public BinaryReader Reader { get { return reader; } }
-		public BinaryWriter Writer { get { return writer; } }
-        
-	    byte type;
         uint sequence;
         int uhash;
 	
-	    MemoryStream stream;
-	    BinaryWriter writer;
-	    BinaryReader reader;
-
         public UdpPacket(byte type)
 	    {
-	        this.type = type;
-	        this.stream = new MemoryStream();
+	        base.type = type;
+            base.stream = new MemoryStream();
             Init();
 	    }
 
-        public UdpPacket(byte[] body, byte type)
+        public UdpPacket(byte[] body, ushort type)
 	    {
-            this.type = type;
-	        stream = new MemoryStream(body);
+            base.type = type;
+            base.stream = new MemoryStream(body);
             Init();
 	    }
 
         void Init()
         {
-            reader = new BinaryReader(stream);
-            writer = new BinaryWriter(stream);
+            base.reader = new BinaryReader(stream);
+            base.writer = new BinaryWriter(stream);
         }
 	
-		
-		public byte[] GetBody()
-		{
-			return stream.ToArray();
-		}
-
         public byte[] ToByteArray(bool uhash)
         {
             return ToByteArray(uhash, null);
@@ -81,7 +60,7 @@ namespace SolarGames.Networking
                     if (cipher != null)
                         cipher.Decrypt(ref body, body.Length);
 
-                    data_writer.Write(CodePacketType(type, (ushort)body.Length));
+                    data_writer.Write(CodePacketType(type, body.Length));
                     data_writer.Write((ushort)body.Length);
                     data_writer.Write((uint)sequence);
                     if (uhash) data_writer.Write((int)this.uhash);
@@ -92,13 +71,6 @@ namespace SolarGames.Networking
             }
 	    }
 
-        static byte CodePacketType(byte type, ushort len)
-        {
-            int a1 = ((byte)len) ^ 0xAC53;
-            int a2 = ((byte)len) ^ 0xAAAA;
-            return (byte)(type ^ a1 ^ a2);
-        }
-
         public static UdpPacket Parse(byte[] buffer, bool uhash_e)
         {
             return Parse(buffer, uhash_e, null);
@@ -106,14 +78,14 @@ namespace SolarGames.Networking
 
         public static UdpPacket Parse(byte[] buffer, bool uhash_e, ICipher cipher)
 	    {
-            int HEADER_SIZE = uhash_e ? 9 : 5; //WITH UHASH OR NOT
+            int HEADER_SIZE = uhash_e ? 12 : 8; //WITH UHASH OR NOT
             if (buffer.Length < HEADER_SIZE) return null;
 	        MemoryStream instream = new MemoryStream(buffer);
 	        BinaryReader reader = new BinaryReader(instream);
             UdpPacket resultPacket;
             try
             {
-                byte type = reader.ReadByte();
+                ushort type = reader.ReadUInt16();
                 ushort len = reader.ReadUInt16();
                 uint sequence = reader.ReadUInt32();
                 int uhash = 0;
@@ -125,7 +97,7 @@ namespace SolarGames.Networking
                 if (cipher != null)
                     cipher.Decrypt(ref body, (int)len);
 
-                resultPacket = new UdpPacket(body, CodePacketType(type,(ushort)len));
+                resultPacket = new UdpPacket(body, CodePacketType(type, len));
                 resultPacket.sequence = sequence;
                 resultPacket.uhash = uhash;
             }

@@ -9,40 +9,27 @@ using System.Runtime.Serialization.Formatters.Binary;
 namespace SolarGames.Networking
 {
 
-	public class TcpPacket : IPacket, IDisposable
+    public class TcpPacket : BasePacket, IPacket, IDisposable
 	{
-		
-	    public int Type {
-	        get { return type; }
-	        set { type = value; }
-	    }
-	    public BinaryReader Reader { get { return reader; } }
-		public BinaryWriter Writer { get { return writer; } }
 	
-	    int type;
-	
-	    MemoryStream stream;
-	    BinaryWriter writer;
-	    BinaryReader reader;
-	
-	    public TcpPacket(int type)
+	    public TcpPacket(ushort type)
 	    {
-	        this.type = type;
-	        this.stream = new MemoryStream();
+	        base.type = type;
+	        base.stream = new MemoryStream();
             Init();
 	    }
 
-        public TcpPacket(byte[] body, int type)
+        public TcpPacket(byte[] body, ushort type)
 	    {
-            this.type = type;
-	        stream = new MemoryStream(body);
+            base.type = type;
+            base.stream = new MemoryStream(body);
             Init();
 	    }
 
         void Init()
         {
-            reader = new BinaryReader(stream);
-            writer = new BinaryWriter(stream);
+            base.reader = new BinaryReader(stream);
+            base.writer = new BinaryWriter(stream);
         }
 
         //public void RLEDecode()
@@ -130,13 +117,6 @@ namespace SolarGames.Networking
         //    }
         //}
         
-	
-		
-		public byte[] GetBody()
-		{
-			return stream.ToArray();
-		}
-
         public byte[] ToByteArray(ICipher cipher)
         {
             using (MemoryStream data = new MemoryStream())
@@ -147,8 +127,8 @@ namespace SolarGames.Networking
                     if (cipher != null)
                         cipher.Encrypt(ref body, body.Length);
 
-                    data_writer.Write(CodePacketType((ushort)type, (uint)body.Length));
-                    data_writer.Write((uint)body.Length);
+                    data_writer.Write(CodePacketType(type, body.Length));
+                    data_writer.Write((int)body.Length);
                     data_writer.Write(body, 0, (int)body.Length);
 
                     return data.ToArray();
@@ -156,18 +136,11 @@ namespace SolarGames.Networking
             }
         }
 
-        static ushort CodePacketType(ushort type, uint len)
-        {
-            int a1 = ((ushort)len) ^ 0xAC53;
-            int a2 = ((ushort)len) ^ 0xAAAA;
-            return (ushort)(type ^ a1 ^ a2);
-        }
 
-	
-	    public byte[] ToByteArray()
-	    {
+        public byte[] ToByteArray()
+        {
             return ToByteArray(null);
-	    }
+        }
 
         public static TcpPacket Parse(ref byte[] buffer)
         {
@@ -183,7 +156,7 @@ namespace SolarGames.Networking
             try
             {
                 ushort type = reader.ReadUInt16();
-                uint len = reader.ReadUInt32();
+                int len = reader.ReadInt32();
                 if (buffer.Length - 6 < len) return null;
 
                 type = CodePacketType(type, len);
@@ -234,30 +207,6 @@ namespace SolarGames.Networking
             }
         }
 
-        public void WriteSerialize(object obj)
-        {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                BinaryFormatter bf = new BinaryFormatter();
-                bf.Serialize(ms, obj);
-                byte[] data = ms.ToArray();
-                writer.Write(data.Length);
-                writer.Write(data);
-            }
-        }
-
-        public object ReadSerialized()
-        {
-            int len = reader.ReadInt32();
-            byte[] data = reader.ReadBytes(len);
-
-            using (MemoryStream ms = new MemoryStream(data))
-            {
-                BinaryFormatter bf = new BinaryFormatter();
-                return bf.Deserialize(ms);
-            }
-        }
-	
 	    public override string ToString()
 	    {
 	        return string.Format("TcpPacket[Type={0},Size={1}]", type, stream.Length);
