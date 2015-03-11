@@ -52,7 +52,10 @@ namespace SolarGames.Networking
         public HttpServer(string host, int port)
             : this()
         {
-            Prefix = string.Format("http://{1}:{0}/", port, host);
+            if (string.IsNullOrEmpty(host))
+                host = "*";
+
+            Prefix = string.Format("http://{0}:{1}/", host, port);
             listener = new HttpListener();
             listener.Prefixes.Add(Prefix);
         }

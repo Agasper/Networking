@@ -14,6 +14,13 @@ namespace SolarGames.Networking
         public delegate void DOnConnect(TcpClient tcpClient);
         public delegate void DOnDisconnect(TcpClient tcpClient);
 
+        public enum TcpClientStatus
+        {
+            Disconnected,
+            Connecting,
+            Connected
+        }
+
         const int defaultBufferSize = ushort.MaxValue * 2;
 
         public bool Connected
@@ -28,6 +35,8 @@ namespace SolarGames.Networking
                 }
             }
         }
+
+        public TcpClientStatus Status { get; private set; }
 
         public Socket Socket
         {
@@ -78,7 +87,9 @@ namespace SolarGames.Networking
 
         public void ConnectAsync(string host, int port)
         {
+            ReInitSocket();
             tcpClient.BeginConnect(host, port, new AsyncCallback(ConnectCallback), null);
+            Status = TcpClientStatus.Connecting;
         }
 
         public void Connect(string host, int port)
@@ -90,6 +101,8 @@ namespace SolarGames.Networking
 
         public void Close()
         {
+            Status = TcpClientStatus.Disconnected;
+
             if (tcpClient == null || tcpClient.Client == null || !tcpClient.Connected)
                 return;
 
@@ -98,20 +111,24 @@ namespace SolarGames.Networking
 
         void OnErrorInternal(SocketException ex)
         {
+            Status = TcpClientStatus.Disconnected;
+
             lock (tcpClient)
             {
                 tcpClient.Close();
             }
 
-            if (OnError != null)
-                OnError(this, ex);
-
             if (ex.ErrorCode == 10054)
                 OnDiconnectInternal();
+
+            if (OnError != null)
+                OnError(this, ex);
         }
 
         void OnDiconnectInternal()
         {
+            Status = TcpClientStatus.Disconnected;
+
             lock (tcpClient)
             {
                 tcpClient.Close();
@@ -129,6 +146,7 @@ namespace SolarGames.Networking
 
                 BeginReceive();
 
+                Status = TcpClientStatus.Connected;
                 connectEvent.Set();
 
                 if (OnConnect != null)
@@ -208,17 +226,30 @@ namespace SolarGames.Networking
 
         public void Dispose()
         {
-            lock (tcpClient)
+            if (tcpClient != null)
             {
-                if (tcpClient != null)
-                    tcpClient.Close();
+                lock (tcpClient)
+                {
 
-                tcpClient = null;
+                    tcpClient.Close();
+                    tcpClient = null;
+                }
             }
+
+
+            if (connectEvent != null)
+                lock (connectEvent)
+                {
+                    connectEvent.Close();
+                    connectEvent = null;
+                }
         }
 
-        public void ReInitSocket()
+        void ReInitSocket()
         {
+            Dispose();
+
+            Status = TcpClientStatus.Disconnected;
             connectEvent = new AutoResetEvent(false);
             tcpClient = new System.Net.Sockets.TcpClient();
             tcpClient.Client.Blocking = blocking;

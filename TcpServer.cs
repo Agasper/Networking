@@ -90,7 +90,10 @@ namespace SolarGames.Networking
 
         public void Listen(int backlog)
         {
-            IPEndPoint myEndpoint = new IPEndPoint(IPAddress.Parse(this.Host), Port);
+            IPEndPoint myEndpoint = new IPEndPoint(IPAddress.Any, Port);
+
+            if (!string.IsNullOrEmpty(this.Host))
+                myEndpoint = new IPEndPoint(IPAddress.Parse(this.Host), Port);
 
             serverSocket = new Socket(AddressFamily.InterNetwork,
                 SocketType.Stream, ProtocolType.Tcp);
